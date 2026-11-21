@@ -15,6 +15,18 @@ jobs:
           test -f package.json
           test -f src/Root.tsx
           test -d public/logos
+      - name: Inspect five-logo package and Remotion composition
+        run: |
+          echo "=== LOGO ZIP CONTENTS ==="
+          unzip -l 5_logo_transparan.zip
+          echo "=== CURRENT LOGO ASSETS ==="
+          find public/logos -maxdepth 2 -type f -printf '%p\n' | sort
+          echo "=== REMOTION SOURCE FILES ==="
+          find src -maxdepth 3 -type f -printf '%p\n' | sort
+          echo "=== ROOT COMPOSITION ==="
+          sed -n '1,260p' src/Root.tsx
+          echo "=== LOGO REFERENCES ==="
+          grep -RniE 'logo|vendor|Rifa|JOI|Heniyuda|Syafa' src --include='*.tsx' --include='*.ts' || true
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
