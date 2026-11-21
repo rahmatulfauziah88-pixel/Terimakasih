@@ -9,36 +9,43 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Extract Remotion project
-        run: |
-          unzip -o terima-kasih-remotion.zip -d .
-          test -f package.json
-          test -f src/Root.tsx
-          test -d public/logos
-      - name: Inspect five-logo package and Remotion composition
-        run: |
-          echo "=== LOGO ZIP CONTENTS ==="
-          unzip -l 5_logo_transparan.zip
-          echo "=== CURRENT LOGO ASSETS ==="
-          find public/logos -maxdepth 2 -type f -printf '%p\n' | sort
-          echo "=== REMOTION SOURCE FILES ==="
-          find src -maxdepth 3 -type f -printf '%p\n' | sort
-          echo "=== ROOT COMPOSITION ==="
-          sed -n '1,260p' src/Root.tsx
-          echo "=== LOGO REFERENCES ==="
-          grep -RniE 'logo|vendor|Rifa|JOI|Heniyuda|Syafa' src --include='*.tsx' --include='*.ts' || true
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Render video
-        run: npm run render
+      - name: Extract latest Remotion project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Tidak ditemukan file ZIP proyek di root repository."
+            exit 1
+          fi
+          echo "Menggunakan arsip: $ZIP_FILE"
+          mkdir -p rendered-project
+          unzip -oq "$ZIP_FILE" -d rendered-project
+          PACKAGE_FILE="$(find rendered-project -type f -name package.json -print -quit)"
+          if [ -z "$PACKAGE_FILE" ]; then
+            echo "package.json tidak ditemukan di dalam arsip."
+            find rendered-project -maxdepth 3 -type f | head -100
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$PACKAGE_FILE")"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Proyek ditemukan di: $PROJECT_DIR"
+          test -f "$PROJECT_DIR/package-lock.json" || test -f "$PROJECT_DIR/npm-shrinkwrap.json"
+      - name: Install dependencies and render
+        working-directory: ${{ steps.project.outputs.project_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run render
       - name: Upload rendered MP4
         uses: actions/upload-artifact@v4
         with:
           name: terima-kasih-mp4
-          path: out/terima-kasih.mp4
+          path: ${{ steps.project.outputs.project_dir }}/out/*.mp4
           if-no-files-found: error
